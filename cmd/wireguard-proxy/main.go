@@ -168,18 +168,21 @@ func ServeUDP(addr, raddr, saddr string) {
 				rc.SetReadDeadline(time.Now().Add(timeout))
 
 				if _, err := io.ReadFull(rc, buf[:2]); err != nil {
+					break
 				}
 
 				n := int(buf[0])<<8 | int(buf[1])
 
 				if _, err := io.ReadFull(rc, buf[:n]); err != nil {
+					break
 				}
 
 				if _, err := c.WriteToUDPAddrPort(buf[:n], raddr); err != nil {
+					break
 				}
 			}
 
-			nm.Del(naddr)
+			nm.Del(raddr)
 		}(conn, naddr, 300*time.Second)
 	}
 }
