@@ -46,12 +46,14 @@ func main() {
 			}
 			switch addr.Scheme {
 			case "socks":
+				log.Println("proxy wireguard to " + addr.String())
 				return addr.Host, socks.Handshake
 			case "http":
+				log.Println("proxy wireguard to " + addr.String())
 				return addr.Host, http.Handshake
 			default:
 			}
-			return addr.Host, func(conn net.Conn, addr string, cmd byte, auth *proxy.Auth) (net.Conn, error) { return conn, nil }
+			return conf.TargetAddr, func(conn net.Conn, addr string, cmd byte, auth *proxy.Auth) (net.Conn, error) { return conn, nil }
 		}()
 		go ServeUDP(conf.ListenAddr, conf.TargetAddr, proxyAddr, handshake)
 	}
@@ -141,14 +143,16 @@ func ServeUDP(addr, raddr, saddr string, handshake Handshake) {
 
 	nm := natmap.NewNatMap()
 	bb := make([]byte, 2*1024)
+
 	for {
 		n, naddr, err := conn.ReadFromUDPAddrPort(bb[2:])
 		if err != nil {
+			log.Println("read from with error: " + err.Error())
 			continue
 		}
 
-		rc := nm.Get(naddr)
-		if rc != nil {
+		rc, ok := nm.Get(naddr)
+		if ok {
 			bb[0], bb[1] = byte(n>>8), byte(n)
 			if _, err := rc.Write(bb[:2+n]); err != nil {
 				rc.SetReadDeadline(time.Now())
@@ -162,6 +166,7 @@ func ServeUDP(addr, raddr, saddr string, handshake Handshake) {
 		}
 
 		if _, err := handshake(rc, raddr, socks.CmdConnect, nil); err != nil {
+			log.Println("handshake error: " + err.Error())
 			rc.Close()
 			continue
 		}

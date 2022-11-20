@@ -17,11 +17,12 @@ func NewNatMap() *NatMap {
 	}
 }
 
-func (nm *NatMap) Get(addr netip.AddrPort) net.Conn {
+func (nm *NatMap) Get(addr netip.AddrPort) (net.Conn, bool) {
 	nm.RLock()
 	defer nm.RUnlock()
 
-	return nm.nm[addr]
+	conn, ok := nm.nm[addr]
+	return conn, ok
 }
 
 func (nm *NatMap) Add(addr netip.AddrPort, conn net.Conn) {
