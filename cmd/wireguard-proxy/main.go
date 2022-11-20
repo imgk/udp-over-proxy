@@ -15,6 +15,7 @@ import (
 
 	"github.com/imgk/wireguard-proxy/http"
 	"github.com/imgk/wireguard-proxy/natmap"
+	"github.com/imgk/wireguard-proxy/shadowsocks"
 	"github.com/imgk/wireguard-proxy/socks"
 )
 
@@ -51,6 +52,9 @@ func main() {
 			case "http":
 				log.Println("proxy wireguard to " + addr.String())
 				return addr.Host, http.Handshake
+			case "ss":
+				log.Println("proxy wireguard to " + addr.String())
+				return addr.Host, shadowsocks.Handshake
 			default:
 			}
 			return conf.TargetAddr, func(conn net.Conn, addr string, cmd byte, auth *proxy.Auth) (net.Conn, error) { return conn, nil }
@@ -165,7 +169,8 @@ func ServeUDP(addr, raddr, saddr string, handshake Handshake) {
 			log.Panic(err)
 		}
 
-		if _, err := handshake(rc, raddr, socks.CmdConnect, nil); err != nil {
+		rc, err = handshake(rc, raddr, socks.CmdConnect, nil)
+		if err != nil {
 			log.Println("handshake error: " + err.Error())
 			rc.Close()
 			continue
