@@ -140,18 +140,18 @@ func ServeUDP(addr, raddr, saddr string, handshake Handshake) {
 	defer conn.Close()
 
 	nm := natmap.NewNatMap()
+	bb := make([]byte, 2*1024)
 	for {
-		buf := make([]byte, 2*1024)
-
-		n, naddr, err := conn.ReadFromUDPAddrPort(buf[2:])
+		n, naddr, err := conn.ReadFromUDPAddrPort(bb[2:])
 		if err != nil {
 			continue
 		}
 
 		rc := nm.Get(naddr)
 		if rc != nil {
-			buf[0], buf[1] = byte(n>>8), byte(n)
-			if _, err := rc.Write(buf[:2+n]); err != nil {
+			bb[0], bb[1] = byte(n>>8), byte(n)
+			if _, err := rc.Write(bb[:2+n]); err != nil {
+				rc.SetReadDeadline(time.Now())
 			}
 			continue
 		}
