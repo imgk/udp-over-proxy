@@ -1,15 +1,20 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"io"
 	"log"
 	"net"
 	"net/netip"
+	"net/url"
 	"os"
 	"os/signal"
 	"time"
 
+	"golang.org/x/net/proxy"
+
+	"github.com/imgk/wireguard-proxy/http"
 	"github.com/imgk/wireguard-proxy/natmap"
 	"github.com/imgk/wireguard-proxy/socks"
 )
@@ -20,10 +25,12 @@ type Config struct {
 	ListenAddr string
 }
 
+type Handshake func(net.Conn, string, byte, *proxy.Auth) (net.Conn, error)
+
 func main() {
 	var conf Config
 
-	flag.StringVar(&conf.ProxyAddr, "proxy", "", "proxy address")
+	flag.StringVar(&conf.ProxyAddr, "proxy", "", "proxy address: socks://127.0.0.1:1080, http://127.0.0.1:8080")
 	flag.StringVar(&conf.TargetAddr, "target", "127.0.0.1:51820", "target address")
 	flag.StringVar(&conf.ListenAddr, "listen", "127.0.0.1:51820", "listen address")
 	flag.Parse()
@@ -33,7 +40,22 @@ func main() {
 		go ServeTCP(conf.ListenAddr, conf.TargetAddr)
 	} else {
 		log.Println("run wireguard-proxy as client mode")
-		go ServeUDP(conf.ListenAddr, conf.TargetAddr, conf.ProxyAddr)
+		proxyAddr, handshake := func() (string, Handshake) {
+			addr, err := url.Parse(conf.ProxyAddr)
+			if err != nil {
+				log.Panic(err)
+			}
+			switch addr.Scheme {
+			case "socks":
+				return addr.Host, socks.Handshake
+			case "http":
+				return addr.Host, http.Handshake
+			default:
+				log.Panic(errors.New(""))
+			}
+			return "", nil
+		}()
+		go ServeUDP(conf.ListenAddr, conf.TargetAddr, proxyAddr, handshake)
 	}
 
 	log.Println("wireguard-proxy is running...")
@@ -106,7 +128,7 @@ func ServeTCP(addr, raddr string) {
 	}
 }
 
-func ServeUDP(addr, raddr, saddr string) {
+func ServeUDP(addr, raddr, saddr string, handshake Handshake) {
 	conn, err := net.ListenUDP("udp", func() *net.UDPAddr {
 		naddr, err := net.ResolveUDPAddr("udp", addr)
 		if err != nil {
@@ -141,17 +163,7 @@ func ServeUDP(addr, raddr, saddr string) {
 			log.Panic(err)
 		}
 
-		if _, err := socks.Handshake(rc, func() net.Addr {
-			naddr, err := net.ResolveTCPAddr("tcp", raddr)
-			if err != nil {
-				log.Panic(err)
-			}
-			addr, err := socks.ResolveAddr(naddr)
-			if err != nil {
-				log.Panic(err)
-			}
-			return addr
-		}(), socks.CmdConnect, nil); err != nil {
+		if _, err := handshake(rc, raddr, socks.CmdConnect, nil); err != nil {
 			rc.Close()
 			continue
 		}

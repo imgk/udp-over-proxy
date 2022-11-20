@@ -72,7 +72,7 @@ const (
 )
 
 // Handshake (client side) is to talk to server
-func Handshake(conn net.Conn, tgt net.Addr, cmd byte, auth *proxy.Auth) (*Addr, error) {
+func Handshake(conn net.Conn, tgt string, cmd byte, auth *proxy.Auth) (net.Conn, error) {
 	b := make([]byte, 3+MaxAddrLen)
 
 	// send supported methods
@@ -124,20 +124,14 @@ func Handshake(conn net.Conn, tgt net.Addr, cmd byte, auth *proxy.Auth) (*Addr, 
 
 	// send target address
 	b[0], b[1], b[2] = 5, cmd, 0
-	if addr, ok := tgt.(*Addr); ok {
-		copy(b[3:], addr.Addr)
-		if _, err := conn.Write(b[:3+len(addr.Addr)]); err != nil {
-			return nil, err
-		}
-	} else {
-		addr, err := ResolveAddrBuffer(tgt, b[3:])
-		if err != nil {
-			return nil, fmt.Errorf("resolve addr error: %w", err)
-		}
 
-		if _, err := conn.Write(b[:3+len(addr.Addr)]); err != nil {
-			return nil, err
-		}
+	addr, err := ResolveAddrBuffer(&StringAddr{Addr: tgt}, b[3:])
+	if err != nil {
+		return nil, fmt.Errorf("resolve addr error: %w", err)
+	}
+
+	if _, err := conn.Write(b[:3+len(addr.Addr)]); err != nil {
+		return nil, err
 	}
 
 	// read response
@@ -148,5 +142,6 @@ func Handshake(conn net.Conn, tgt net.Addr, cmd byte, auth *proxy.Auth) (*Addr, 
 		return nil, Error(b[1])
 	}
 
-	return ReadAddrBuffer(conn, b)
+	_, err = ReadAddrBuffer(conn, b)
+	return conn, err
 }
