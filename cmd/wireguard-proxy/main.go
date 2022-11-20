@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"io"
 	"log"
@@ -51,9 +50,8 @@ func main() {
 			case "http":
 				return addr.Host, http.Handshake
 			default:
-				log.Panic(errors.New(""))
 			}
-			return "", nil
+			return addr.Host, func(conn net.Conn, addr string, cmd byte, auth *proxy.Auth) (net.Conn, error) { return conn, nil }
 		}()
 		go ServeUDP(conf.ListenAddr, conf.TargetAddr, proxyAddr, handshake)
 	}
