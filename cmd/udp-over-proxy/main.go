@@ -13,10 +13,10 @@ import (
 
 	"golang.org/x/net/proxy"
 
-	"github.com/imgk/wireguard-proxy/http"
-	"github.com/imgk/wireguard-proxy/natmap"
-	"github.com/imgk/wireguard-proxy/shadowsocks"
-	"github.com/imgk/wireguard-proxy/socks"
+	"github.com/imgk/udp-over-proxy/http"
+	"github.com/imgk/udp-over-proxy/natmap"
+	"github.com/imgk/udp-over-proxy/shadowsocks"
+	"github.com/imgk/udp-over-proxy/socks"
 )
 
 type Config struct {
@@ -36,10 +36,10 @@ func main() {
 	flag.Parse()
 
 	if conf.ProxyAddr == "" {
-		log.Println("run wireguard-proxy as server mode")
+		log.Println("run udp-over-proxy as server mode")
 		go ServeTCP(conf.ListenAddr, conf.TargetAddr)
 	} else {
-		log.Println("run wireguard-proxy as client mode")
+		log.Println("run udp-over-proxy as client mode")
 		proxyAddr, handshake := func() (string, Handshake) {
 			addr, err := url.Parse(conf.ProxyAddr)
 			if err != nil {
@@ -62,11 +62,11 @@ func main() {
 		go ServeUDP(conf.ListenAddr, conf.TargetAddr, proxyAddr, handshake)
 	}
 
-	log.Println("wireguard-proxy is running...")
+	log.Println("udp-over-proxy is running...")
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
 	<-sigCh
-	log.Println("wireguard-proxy is closing...")
+	log.Println("udp-over-proxy is closing...")
 }
 
 func ServeTCP(addr, raddr string) {

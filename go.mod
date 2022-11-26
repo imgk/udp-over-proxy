@@ -1,4 +1,4 @@
-module github.com/imgk/wireguard-proxy
+module github.com/imgk/udp-over-proxy
 
 go 1.19
 

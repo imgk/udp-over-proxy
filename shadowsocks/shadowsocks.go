@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/net/proxy"
 
-	"github.com/imgk/wireguard-proxy/socks"
+	"github.com/imgk/udp-over-proxy/socks"
 
 	"github.com/shadowsocks/go-shadowsocks2/core"
 )
